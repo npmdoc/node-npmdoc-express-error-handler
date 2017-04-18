@@ -56,6 +56,15 @@
 
         <li>
 
+            <a class="apidocElementLiA" href="#apidoc.element.express-error-handler.express-error-handler">
+            function <span class="apidocSignatureSpan"></span>express-error-handler
+            <span class="apidocSignatureSpan">(options)</span>
+            </a>
+
+        </li>
+
+        <li>
+
             <a class="apidocElementLiA" href="#apidoc.element.express-error-handler.clientError">
             function <span class="apidocSignatureSpan">express-error-handler.</span>clientError
             <span class="apidocSignatureSpan">()</span>
@@ -87,6 +96,167 @@
 
 <div class="apidocSectionDiv">
 <h1><a href="#apidoc.module.express-error-handler" id="apidoc.module.express-error-handler">module express-error-handler</a></h1>
+
+
+    <h2>
+        <a href="#apidoc.element.express-error-handler.express-error-handler" id="apidoc.element.express-error-handler.express-error-handler">
+        function <span class="apidocSignatureSpan"></span>express-error-handler
+        <span class="apidocSignatureSpan">(options)</span>
+        </a>
+    </h2>
+    <ul>
+    <li>description and source-code<pre class="apidocCodePre">function createHandler(options) {
+
+  var o = mixIn({}, defaults, options),
+
+<span class="apidocCodeCommentSpan">    /**
+     * In case of an error, wait for a timer to
+     * elapse, and then terminate.
+     * @param {object} options
+     * @param {number} o.exitStatus
+     * @param {number} o.timeout
+     */
+</span>    exit = o.shutdown || function exit(o){
+
+      // Give the app time for graceful shutdown.
+      setTimeout(function () {
+        process.exit(o.exitStatus);
+      }, o.timeout);
+
+    },
+    express = o.framework === 'express',
+    restify = o.framework === 'restify',
+    errorHandler;
+
+  /**
+   * Express error handler to handle any
+   * uncaught express errors. For error logging,
+   * see bunyan-request-logger.
+   *
+   * @param  {object}   err
+   * @param  {object}   req
+   * @param  {object}   res
+   * @param  {function} next
+   */
+  errorHandler = function errorHandler(err, req,
+      res, next) {
+
+    var defaultView = o.views['default'],
+      defaultStatic = o.static['default'],
+      status = err &amp;&amp; err.status ||
+        res &amp;&amp; res.statusCode,
+      handler = o.handlers[status],
+      view = o.views[status],
+      staticFile = o.static[status],
+
+      renderDefault = function
+          renderDefault(statusCode) {
+
+        res.statusCode = statusCode;
+
+        if (defaultView) {
+          return res.render(defaultView, err);
+        }
+
+        if (defaultStatic) {
+          return sendFile(defaultStatic, res);
+        }
+
+        if (restify) {
+          send(statusCode, err, res, o);
+        }
+
+        if (express) {
+          return res.format({
+            json: function () {
+              send(statusCode, err, res, {
+                serializer: o.serializer || function (o) {
+                  return o;
+                }
+              });
+            },
+            text: function () {
+              send(statusCode, err, res, {
+                serializer: function (o) {
+                  return o.message;
+                }
+              });
+            },
+            html: function () {
+              send(statusCode, err, res, {
+                serializer: function (o) {
+                  return o.message;
+                }
+              });
+            }
+          });
+        }
+      },
+
+      resumeOrClose = function
+          resumeOrClose(status) {
+        if (!isClientError(status)) {
+          return close(o, exit);
+        }
+      };
+
+    if (!res) {
+      return resumeOrClose(status);
+    }
+
+    // If there's a custom handler defined,
+    // use it and return.
+    if (typeof handler === 'function') {
+      handler(err, req, res, next);
+      return resumeOrClose(status);
+    }
+
+    // If there's a custom view defined,
+    // render it.
+    if (view) {
+      res.render(view, err);
+      return resumeOrClose(status);
+    }
+
+    // If there's a custom static file defined,
+    // render it.
+    if (staticFile) {
+      sendFile(staticFile, res);
+      return resumeOrClose(status);
+    }
+
+    // If the error is user generated, send
+    // a helpful error message, and don't shut
+    // down.
+    //
+    // If we shutdown on user errors,
+    // attackers can send malformed requests
+    // for the purpose of creating a Denial
+    // Of Service (DOS) attack.
+    if (isClientError(status)) {
+      return renderDefault(status);
+    }
+
+    // For all other errors, deliver a 500
+    // error and shut down.
+    renderDefault(500);
+
+    close(o, exit);
+  };
+
+  if (express) {
+    return errorHandler;
+  }
+
+  if (restify) {
+    return function (req, res, route, err) {
+      return errorHandler(err, req, res);
+    };
+  }
+}</pre></li>
+    <li>example usage<pre class="apidocCodePre">n/a</pre></li>
+    </ul>
+
 
 
     <h2>
